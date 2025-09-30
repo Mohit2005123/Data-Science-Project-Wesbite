@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import Groq from "groq-sdk";
 import axios from "axios";
-import { Content } from "next/font/google";
 export const runtime = "nodejs";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-const MODEL = "openai/gpt-oss-120b"
+const MODEL = "openai/gpt-oss-120b";
 
 export async function POST(req) {
   try {
@@ -50,6 +48,12 @@ export async function POST(req) {
 
     // If RAG didn't produce a reply, fallback to Groq (Hindi-only, plain text)
     if (!reply) {
+      const apiKey = process.env.GROQ_API_KEY || "";
+      if (!apiKey) {
+        return NextResponse.json({ error: "GROQ_API_KEY is not configured on the server" }, { status: 500 });
+      }
+
+      const groq = new Groq({ apiKey });
       const chatCompletion = await groq.chat.completions.create({
         model: MODEL,
         messages: [
