@@ -15,8 +15,17 @@ export async function POST(req) {
     const system = [
       "आप केवल हिंदी में उत्तर दें।",
       "यदि इनपुट किसी और भाषा में हो, तो उसे मानसिक रूप से हिंदी में बदलकर केवल हिंदी में उत्तर दें।",
-      "अंग्रेज़ी शब्द/वाक्य बिलकुल न जोड़ें।"
+      "अंग्रेज़ी शब्द/वाक्य बिलकुल न जोड़ें।",
+      "उत्तर विस्तृत और सूचनाप्रद हो, जहाँ संभव हो वहाँ अतिरिक्त संदर्भ/उदाहरण भी दें।",
+      "मार्कडाउन, बुलेट पॉइंट, शीर्षक या सजावटी चिन्ह न दें; केवल सादा पाठ लिखें।",
+      "तारांकन (*) अथवा किसी भी प्रकार के विशेष चिन्हों का प्रयोग न करें।"
     ].join(" ");
+    // Add a separate instruction about links to encourage helpful plain-text URLs
+    const linkInstruction = [
+      "जहाँ उपयुक्त हो, उत्तर के अंत में 2-4 विश्वसनीय वेब लिंक (सरकारी/आधिकारिक/प्रामाणिक स्रोत) साधारण URLs के रूप में अलग-अलग पंक्तियों में दें।",
+      "लिंक्स के साथ कोई बुलेट, शीर्षक या सजावटी स्वरूप न दें—केवल URLs।"
+    ].join(" ");
+    const fullSystem = `${system} ${linkInstruction}`;
 
     // Try Legal RAG API first
     let reply = "";
@@ -38,7 +47,8 @@ export async function POST(req) {
       const altTarget = "प्रदत्त दस्तावेजों में पर्याप्त जानकारी उपलब्ध नहीं है"; // without nukta on ज़
       if (
         normalized.includes(target) ||
-        normalized.includes(altTarget)
+        normalized.includes(altTarget) ||
+        normalized.includes("पर्याप्त")
       ) {
         reply = ""; // force fallback below
       }
@@ -57,12 +67,15 @@ export async function POST(req) {
       const chatCompletion = await groq.chat.completions.create({
         model: MODEL,
         messages: [
-          { role: "system", content: system },
+          { role: "system", content: fullSystem },
           { role: "user", content: prompt },
         ],
         temperature: 0.3,
+        max_tokens: 1200,
       });
-      reply = (chatCompletion?.choices?.[0]?.message?.content || "").trim();
+      reply = (chatCompletion?.choices?.[0]?.message?.content || "")
+        .replace(/\*/g, "")
+        .trim();
     }
 
     return NextResponse.json({ reply: reply });
